@@ -239,6 +239,11 @@ inline void handleWiFiScan() {
   Serial.println("[Web] GET /wifiscan — WiFi scan start");
   server.sendHeader("Access-Control-Allow-Origin", "*");
 
+  // Safely stop BLE scan if active to prevent radio coexistence issues
+  if (BLEDevice::getScan()) {
+    BLEDevice::getScan()->stop();
+  }
+
   int n = WiFi.scanNetworks();
   StaticJsonDocument<1024> doc;
   JsonArray networks = doc.createNestedArray("networks");

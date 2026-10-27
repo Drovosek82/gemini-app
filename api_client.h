@@ -34,7 +34,7 @@ inline void pushBMSData(float voltage, float current, int soc) {
     http.addHeader("User-Agent", "ESP32-BMS-Controller");
     
     // Формуємо JSON
-    DynamicJsonDocument doc(256);
+    DynamicJsonDocument doc(512);
     doc["device_id"] = deviceId;
     doc["voltage"] = voltage;
     doc["current"] = current;

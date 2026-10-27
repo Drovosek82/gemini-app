@@ -90,7 +90,7 @@ public:
     {
       auto cfg = _light.config();
 
-      cfg.pin_bl      = -1;     // GPIO11 → Pin1 LED+ (через резистор 33Ом)
+      cfg.pin_bl      = 11;     // GPIO11 → Pin1 LED+ (через резистор 33Ом)
       cfg.invert      = false;  // HIGH = яскраво (не інвертований)
       cfg.freq        = 12000;  // 12kHz PWM (вище слуху людини)
       cfg.pwm_channel = 0;      // LEDC канал (ESP32-S3)
