@@ -13,7 +13,7 @@ void setup() {
   // Initialize Serial
   Serial.begin(115200);
   Serial.println("[Main] =========================================");
-  Serial.println("[Main] ESP32-C3 BMS Controller v2.0");
+  Serial.println("[Main] ESP32-S3 BMS Controller v2.0");
   Serial.println("[Main] =========================================");
 
   // Load saved preferences at startup

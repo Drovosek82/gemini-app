@@ -239,16 +239,22 @@ inline bool readBasicInfo() {
     bmsData.capacityRemaining = ((bmsResponse[8] << 8) | bmsResponse[9]) / 100.0;
     bmsData.capacityTotal = ((bmsResponse[10] << 8) | bmsResponse[11]) / 100.0;
     bmsData.cycleCount = (bmsResponse[12] << 8) | bmsResponse[13];
-    bmsData.productionDate = String("20") + String(bmsResponse[14]) + "/" +
-                            String(bmsResponse[15]) + "/" + String(bmsResponse[16]);
-    bmsData.balanceStatus = (bmsResponse[17] << 8) | bmsResponse[18];
-    bmsData.balanceStatusHigh = (bmsResponse[19] << 8) | bmsResponse[20];
-    bmsData.protectionStatus = (bmsResponse[20] << 8) | bmsResponse[21];  // Fixed: bytes 20-21
-    bmsData.softwareVersion = bmsResponse[22];  // Hardware version
-    bmsData.soc = bmsResponse[23];  // Fixed: RSOC in byte 23
-    bmsData.fetStatus = bmsResponse[24];  // Fixed: FET Status in byte 24
-    bmsData.cellCount = bmsResponse[25];  // Fixed: Cell Count in byte 25
-    bmsData.tempSensorCount = bmsResponse[26];  // Fixed: NTC Count in byte 26
+
+    // Production Date parsing (16-bit bitfield: Year: bit 15-9, Month: bit 8-5, Day: bit 4-0)
+    uint16_t dateRaw = (bmsResponse[14] << 8) | bmsResponse[15];
+    uint16_t year = 2000 + (dateRaw >> 9);
+    uint8_t month = (dateRaw >> 5) & 0x0F;
+    uint8_t day = dateRaw & 0x1F;
+    bmsData.productionDate = String(year) + "/" + String(month) + "/" + String(day);
+
+    bmsData.balanceStatus = (bmsResponse[16] << 8) | bmsResponse[17];
+    bmsData.balanceStatusHigh = (bmsResponse[18] << 8) | bmsResponse[19];
+    bmsData.protectionStatus = (bmsResponse[20] << 8) | bmsResponse[21];
+    bmsData.softwareVersion = bmsResponse[22];
+    bmsData.soc = bmsResponse[23];
+    bmsData.fetStatus = bmsResponse[24];
+    bmsData.cellCount = bmsResponse[25];
+    bmsData.tempSensorCount = bmsResponse[26];
 
     // Parse temperatures (0.1K -> °C: (value - 2731) / 10)
     // Temperatures start at byte 27
@@ -331,14 +337,26 @@ inline bool readCellVoltages() {
 
 // MOSFET control
 inline void controlMOSFET(uint8_t state) {
-  uint8_t cmd[] = {0xDD, 0xA5, 0x94, 0x01, state, 0x00, 0x77};
-  uint16_t checksum = jbdChecksum(cmd, 5);
-  
-  cmd[5] = (checksum >> 8) & 0xFF;
-  cmd[6] = checksum & 0xFF;
-  
+  // JBD Protocol write command packet format:
+  // [0] Start Byte: 0xDD
+  // [1] Command Type: 0x5A (Write)
+  // [2] Register: 0xE1 (MOSFET Switch Register)
+  // [3] Data Length: 0x02
+  // [4] Data Byte 0: 0x00
+  // [5] Data Byte 1: state (0=Both OFF, 1=CHG ON, 2=DSG ON, 3=Both ON)
+  // [6] Checksum High
+  // [7] Checksum Low
+  // [8] End Byte: 0x77
+  uint8_t cmd[9] = {0xDD, 0x5A, 0xE1, 0x02, 0x00, state, 0x00, 0x00, 0x77};
+
+  // Checksum is calculated over bytes 3..5 (Length + Data)
+  uint16_t checksum = jbdChecksum(cmd + 3, 3);
+
+  cmd[6] = (checksum >> 8) & 0xFF;
+  cmd[7] = checksum & 0xFF;
+
   Serial.printf("[BMS] Керування MOSFET: %02X\n", state);
-  
+
   if (sendBMSCommand(cmd, sizeof(cmd), 1000)) {
     Serial.println("[BMS] MOSFET команда відправлена успішно");
   } else {
